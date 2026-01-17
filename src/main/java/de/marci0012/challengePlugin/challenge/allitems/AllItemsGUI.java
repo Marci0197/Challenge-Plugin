@@ -1,106 +1,115 @@
 package de.marci0012.challengePlugin.challenge.allitems;
 
-import de.marci0012.challengePlugin.Main;
-import de.marci0012.challengePlugin.timer.TimerManager;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public class AllItemsChallenge {
+public class AllItemsGUI implements Listener {
 
-    private final TimerManager timerManager;
-    private final Set<Material> foundItems = EnumSet.noneOf(Material.class);
-    private final AllItemsBossBar bossBar;
-    private final AllItemsStorage storage;
+    private static final int ITEMS_PER_PAGE = 45;
+    private static final Map<Player, GUIPageInfo> pageMap = new HashMap<>();
 
-    // Unerwünschte Items
+    // Liste unerwünschter Items
     private static final Set<Material> excludedItems = Set.of(
             Material.LIGHT,
             Material.PLAYER_HEAD,
             Material.VAULT,
-            Material.TRIAL_SPAWNER,
-            Material.TEST_BLOCK,
-            Material.TEST_INSTANCES_BLOCK,
-            Material.STRUCTURE_VOID,
-            Material.SUSPICIOUS_GRAVEL,
-            Material.SUSPICIOUS_SAND,
-            Material.MONSTER_SPAWNER,
-            Material.JIGSAW_BLOCK,
+            Material.TRAPPED_CHEST,
+            // Material.MONSTER_SPAWNER,
+            // Material.JIGSAW_BLOCK,
             Material.KNOWLEDGE_BOOK,
             Material.FROGSPAWN,
             Material.DEBUG_STICK,
-            Material.BEDROCK
+            Material.BEDROCK,
+            Material.STRUCTURE_VOID,
+            Material.SUSPICIOUS_GRAVEL,
+            Material.SUSPICIOUS_SAND,
+            Material.TEST_BLOCK
+            // Material.TEST_INSTANCES_BLOCK
     );
 
-    private final Set<Material> allValidItems;
+    // Öffnet die "gefunden"-Items GUI
+    public static void openFound(Player player, Set<Material> items, int page) {
+        List<Material> sorted = filterValidItems(items);
+        open(player, sorted, page, true);
+    }
 
-    public AllItemsChallenge(TimerManager timerManager, Main plugin) {
-        this.timerManager = timerManager;
+    // Öffnet die "fehlenden"-Items GUI
+    public static void openMissing(Player player, Set<Material> items, int page) {
+        List<Material> sorted = filterValidItems(items);
+        open(player, sorted, page, false);
+    }
 
-        // Alle gültigen Items
-        allValidItems = EnumSet.allOf(Material.class).stream()
+    // Filtert Items für Survival und entfernt unerwünschte
+    private static List<Material> filterValidItems(Collection<Material> items) {
+        return items.stream()
                 .filter(Material::isItem)
+                .filter(m -> !m.name().contains("AIR"))
                 .filter(m -> !excludedItems.contains(m))
-                .collect(Collectors.toSet());
-
-        this.storage = new AllItemsStorage(plugin);
-        foundItems.addAll(storage.load().stream()
-                .filter(allValidItems::contains)
-                .collect(Collectors.toSet()));
-
-        this.bossBar = new AllItemsBossBar(this, plugin);
-        bossBar.update();
+                .sorted(Comparator.comparing(Material::name))
+                .collect(Collectors.toList());
     }
 
-    public boolean isActive() {
-        return timerManager.isRunning();
-    }
+    // Allgemeine Öffnungs-Methode
+    private static void open(Player player, List<Material> items, int page, boolean found) {
+        Inventory inv = Bukkit.createInventory(null, 54,
+                found ? "Items gefunden Seite " + (page + 1)
+                        : "Items noch nicht gefunden Seite " + (page + 1));
 
-    public boolean addItem(Material material) {
-        if (!isActive() || !allValidItems.contains(material)) return false;
+        int start = page * ITEMS_PER_PAGE;
+        int end = Math.min(start + ITEMS_PER_PAGE, items.size());
 
-        if (foundItems.add(material)) {
-            storage.save(foundItems);
-            bossBar.update();
-
-            if (foundItems.size() >= allValidItems.size()) {
-                Bukkit.broadcastMessage("§6§lAlle Items gefunden! Challenge abgeschlossen!");
-                timerManager.stopTimer();
-            }
-
-            return true;
+        // Items setzen
+        for (int i = start; i < end; i++) {
+            inv.setItem(i - start, new ItemStack(items.get(i)));
         }
 
-        return false;
+        // Navigation
+        if (page > 0) inv.setItem(45, createNavItem(Material.RED_STAINED_GLASS_PANE, "Vorherige Seite"));
+        if (end < items.size()) inv.setItem(53, createNavItem(Material.GREEN_STAINED_GLASS_PANE, "Nächste Seite"));
+
+        pageMap.put(player, new GUIPageInfo(new HashSet<>(items), page, found));
+        player.openInventory(inv);
     }
 
-    public Set<Material> getFoundItems() {
-        return foundItems;
+    // Klickbare Glas-Panes
+    private static ItemStack createNavItem(Material material, String name) {
+        ItemStack item = new ItemStack(material);
+        var meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(name));
+            meta.setUnbreakable(true);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
-    public Set<Material> getMissingItems() {
-        Set<Material> missing = EnumSet.copyOf(allValidItems);
-        missing.removeAll(foundItems);
-        return missing;
+    public static GUIPageInfo getPageInfo(Player player) {
+        return pageMap.get(player);
     }
 
-    public Set<Material> getAllValidItems() {
-        return allValidItems;
-    }
+    // PageInfo-Klasse pro Spieler
+    public static class GUIPageInfo {
+        private final Set<Material> items;
+        private int page;
+        private final boolean found;
 
-    public int getTotalItems() {
-        return allValidItems.size();
-    }
+        public GUIPageInfo(Set<Material> items, int page, boolean found) {
+            this.items = items;
+            this.page = page;
+            this.found = found;
+        }
 
-    public int getFoundCount() {
-        return foundItems.size();
-    }
-
-    public void resetAllItems() {
-        foundItems.clear();
-        bossBar.update();
+        public Set<Material> getItems() { return items; }
+        public int getPage() { return page; }
+        public void setPage(int page) { this.page = page; }
+        public boolean isFound() { return found; }
     }
 }
