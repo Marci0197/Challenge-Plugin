@@ -1,0 +1,16 @@
+name: Challenge-Plugin
+version: '1.0'
+main: de.marci0012.challengePlugin.Main
+api-version: '1.21'
+authors: [ Marci0012 ]
+description: Ein Plugin, was einen Timer hinzufügt.
+commands:
+  timer:
+    description: Steuert einen Timer
+    usage: /timer <start|stop|reset>
+    permission: challenge.timer
+
+permissions:
+  challenge.timer:
+    description: Erlaubt die Nutzung des /timer Befehls
+    default: true
