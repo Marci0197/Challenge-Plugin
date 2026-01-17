@@ -55,7 +55,7 @@ public class TimerListener implements Listener {
     public void onPlayerPickupItem(PlayerPickupItemEvent event) {
         AllItemsChallenge challenge = Main.getInstance().getAllItemsChallenge();
         if (challenge.isActive()) {
-            challenge.addItem(event.getItem().getItemStack().getType());
+            challenge.addItem(event.getPlayer(), event.getItem().getItemStack().getType());
         }
     }
 
