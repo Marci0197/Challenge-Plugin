@@ -3,14 +3,22 @@ version: '1.0'
 main: de.marci0012.challengePlugin.Main
 api-version: '1.21'
 authors: [ Marci0012 ]
-description: Ein Plugin, was einen Timer hinzufügt.
+description: Ein Plugin, das einen Timer und eine All Items Challenge hinzufügt.
+
 commands:
   timer:
     description: Steuert einen Timer
     usage: /timer <start|stop|reset>
     permission: challenge.timer
+  challenge:
+    description: Verwalte die All Items Challenge
+    usage: /challenge allitems <missing|found|stats>
+    permission: challenge.allitems
 
 permissions:
   challenge.timer:
     description: Erlaubt die Nutzung des /timer Befehls
+    default: true
+  challenge.allitems:
+    description: Erlaubt Zugriff auf die All Items Challenge Commands
     default: true

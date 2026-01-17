@@ -1,5 +1,7 @@
 package de.marci0012.challengePlugin.timer;
 
+import de.marci0012.challengePlugin.Main;
+import de.marci0012.challengePlugin.challenge.allitems.AllItemsChallenge;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -11,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class TimerListener implements Listener {
@@ -21,12 +24,9 @@ public class TimerListener implements Listener {
         this.timerManager = timerManager;
     }
 
-
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player dead = event.getPlayer();
-
-        // TODESPOSITION + WELT SPEICHERN
         Location deathLocation = dead.getLocation().clone();
 
         timerManager.stopTimer();
@@ -41,13 +41,9 @@ public class TimerListener implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
-                // INSTANT RESPAWN
                 dead.spigot().respawn();
-
-                // ZURÜCK AN TODESSTELLE (INKL. END)
                 dead.teleport(deathLocation);
 
-                // ALLE SPECTATOR
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     p.setGameMode(GameMode.SPECTATOR);
                 }
@@ -55,15 +51,19 @@ public class TimerListener implements Listener {
         }.runTaskLater(timerManager.getPlugin(), 1L);
     }
 
+    @EventHandler
+    public void onPlayerPickupItem(PlayerPickupItemEvent event) {
+        AllItemsChallenge challenge = Main.getInstance().getAllItemsChallenge();
+        if (challenge.isActive()) {
+            challenge.addItem(event.getItem().getItemStack().getType());
+        }
+    }
 
     @EventHandler
     public void onDragonDeath(EntityDeathEvent event) {
         if (!(event.getEntity() instanceof EnderDragon)) return;
 
         timerManager.stopTimer();
-
-        Bukkit.broadcast(
-                Component.text("Timer gestoppt!", NamedTextColor.GOLD)
-        );
+        Bukkit.broadcast(Component.text("Timer gestoppt!", NamedTextColor.GOLD));
     }
 }

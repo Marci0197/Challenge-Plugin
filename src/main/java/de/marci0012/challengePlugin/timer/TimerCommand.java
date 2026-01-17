@@ -1,5 +1,7 @@
 package de.marci0012.challengePlugin.timer;
 
+import de.marci0012.challengePlugin.Main;
+import de.marci0012.challengePlugin.challenge.allitems.AllItemsChallenge;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -33,7 +35,6 @@ public class TimerCommand implements CommandExecutor {
         }
 
         switch (args[0].toLowerCase()) {
-
             case "start" -> {
                 if (timerManager.isRunning()) return true;
 
@@ -44,12 +45,19 @@ public class TimerCommand implements CommandExecutor {
                     return true;
                 }
 
+                // Timer starten
                 timerManager.startTimer();
 
+                // Alle Spieler auf Survival setzen
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     p.setGameMode(GameMode.SURVIVAL);
                 }
+
+                // Alle Items zurücksetzen
+                Main.getInstance().getAllItemsChallenge().resetAllItems();
+                sender.sendMessage(Component.text("Alle Items wurden zurückgesetzt.", NamedTextColor.GREEN));
             }
+
 
             case "stop" -> timerManager.stopTimer();
 
@@ -70,8 +78,20 @@ public class TimerCommand implements CommandExecutor {
 
         if (end == null) return false;
 
-        return end.getEntitiesByClass(EnderDragon.class)
-                .stream()
+        // End vorbereiten
+        end.getChunkAt(0,0).load();
+        end.getPlayers().forEach(p -> {}); // Erzwingt Laden
+
+        // Prüfen, ob der Enderdrache existiert
+        boolean alive = end.getEntitiesByClass(EnderDragon.class).stream()
                 .anyMatch(dragon -> !dragon.isDead());
+
+        // Wenn nicht, optional respawnen
+        if (!alive) {
+            EnderDragon dragon = (EnderDragon) end.spawn(end.getSpawnLocation(), EnderDragon.class);
+            alive = true;
+        }
+
+        return alive;
     }
 }
